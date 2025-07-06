@@ -1,0 +1,608 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programming Fundamentals - Chương 1</title>
+    <style>
+        /* Reset và font chữ */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            overflow: hidden;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* Phần lý thuyết bên trái */
+        .theory {
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+            background-color: #f8fafc;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        /* Phần bên phải */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Phần diagram */
+        .diagram {
+            padding: 20px;
+            background-color: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            transition: max-height 0.5s ease, padding 0.5s ease, border-bottom 0.5s ease;
+            overflow-x: auto;
+            max-height: 1000px;
+        }
+        
+        /* Phần bài tập */
+        .quiz {
+            padding: 20px;
+            background-color: #f1f5f9;
+            overflow-y: auto;
+            flex-grow: 1;
+            transition: max-height 0.5s ease, padding 0.5s ease;
+            max-height: 1000px;
+        }
+        
+        /* Khi diagram bị ẩn */
+        .diagram.collapsed {
+            max-height: 0;
+            padding: 0;
+            overflow: hidden;
+            border-bottom: none;
+        }
+        
+        /* Khi quiz bị ẩn */
+        .quiz.collapsed {
+            max-height: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        /* Nút hiện diagram và quiz cố định */
+        .show-diagram-btn, .show-quiz-btn {
+            position: absolute;
+            right: 20px;
+            background-color: #1e40af;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            z-index: 10;
+            display: none;
+        }
+        
+        .show-diagram-btn {
+            top: 10px;
+        }
+        
+        .show-quiz-btn {
+            top: 50px;
+        }
+        
+        .show-diagram-btn:hover, .show-quiz-btn:hover {
+            background-color: #1e3a8a;
+        }
+        
+        /* Tiêu đề */
+        h1 {
+            color: #1e3a8a;
+            margin-bottom: 20px;
+            font-size: 28px;
+            border-bottom: 2px solid #1e3a8a;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #1e40af;
+            margin: 15px 0;
+            font-size: 22px;
+        }
+        
+        h3 {
+            color: #1e40af;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        
+        /* Code block */
+        code {
+            background-color: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            color: #c53030;
+        }
+        
+        pre {
+            background-color: #2d3748;
+            color: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 4;
+            min-width: fit-content;
+        }
+        
+        /* Bảng */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-width: 600px;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        th {
+            background-color: #1e40af;
+            color: white;
+            font-weight: 500;
+        }
+        
+        tr:hover {
+            background-color: #f8fafc;
+        }
+        
+        /* Mermaid diagram */
+        .mermaid-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            min-width: 600px;
+        }
+        
+        /* Câu hỏi trắc nghiệm */
+        .question {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .question p {
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .options {
+            margin-left: 5px;
+        }
+        
+        .option {
+            display: block;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+        
+        .option input {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        button {
+            background-color: #1e40af;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #1e3a8a;
+        }
+        
+        .answer-feedback {
+            margin-top: 12px;
+            font-weight: 500;
+            display: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+        
+        .correct {
+            background-color: #dcfce7;
+            color: #166534;
+            border-left: 4px solid #166534;
+        }
+        
+        .incorrect {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #991b1b;
+        }
+        
+        /* Nút ẩn/hiện */
+        .diagram-header, .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .toggle-diagram, .toggle-quiz {
+            background-color: #e2e8f0;
+            color: #1e40af;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .toggle-diagram:hover, .toggle-quiz:hover {
+            background-color: #cbd5e1;
+        }
+        
+        /* Tùy chỉnh thanh cuộn */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .theory, .right-panel {
+                height: auto;
+                max-height: 50vh;
+            }
+            
+            table, .mermaid-container {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Phần lý thuyết bên trái -->
+    <div class="theory">
+        <h1>Chương 1: Các thành phần chương trình máy tính</h1>
+        
+        <h2>1. Cấu trúc chương trình cơ bản</h2>
+        <pre><code># Ví dụ bằng Python
+# Phần khai báo
+import math  
+
+# Phần thân chính
+def main():
+    print("Hello World")  # Câu lệnh
+    x = 5 + 3  # Biểu thức
+    print("Kết quả:", x)
+
+if __name__ == "__main__":
+    main()</code></pre>
+        
+        <p><strong>Giải thích:</strong></p>
+        <ul style="margin-left: 20px; margin-bottom: 15px;">
+            <li><strong>Phần khai báo:</strong> Import thư viện, khai báo biến toàn cục</li>
+            <li><strong>Phần thân chính:</strong> Chứa các lệnh thực thi</li>
+            <li><strong>Câu lệnh (Statement):</strong> Đơn vị thực thi (vd: gán giá trị, điều kiện)</li>
+            <li><strong>Biểu thức (Expression):</strong> Tổ hợp toán hạng và toán tử (vd: <code>5 + 3</code>)</li>
+        </ul>
+        
+        <h2>2. Các thành phần ngôn ngữ</h2>
+        <table>
+            <tr>
+                <th>Thành phần</th>
+                <th>Ví dụ</th>
+                <th>Vai trò</th>
+            </tr>
+            <tr>
+                <td><strong>Từ khóa</strong></td>
+                <td><code>if</code>, <code>for</code>, <code>int</code></td>
+                <td>Từ dành riêng của ngôn ngữ</td>
+            </tr>
+            <tr>
+                <td><strong>Biến</strong></td>
+                <td><code>x = 10</code></td>
+                <td>Lưu trữ dữ liệu</td>
+            </tr>
+            <tr>
+                <td><strong>Hằng số</strong></td>
+                <td><code>PI = 3.14</code></td>
+                <td>Giá trị không đổi</td>
+            </tr>
+            <tr>
+                <td><strong>Toán tử</strong></td>
+                <td><code>+</code>, <code>&&</code>, <code>=</code></td>
+                <td>Thực hiện phép toán</td>
+            </tr>
+            <tr>
+                <td><strong>Hàm</strong></td>
+                <td><code>print()</code>, <code>main()</code></td>
+                <td>Nhóm lệnh có tên</td>
+            </tr>
+        </table>
+        
+        <h2>3. Quy trình biên dịch</h2>
+        <p>Chương trình máy tính trải qua 4 bước chính:</p>
+        <ol style="margin-left: 20px; margin-bottom: 15px;">
+            <li><strong>Tiền xử lý:</strong> Xử lý chỉ thị tiền xử lý (vd: <code>#include</code> trong C)</li>
+            <li><strong>Biên dịch:</strong> Chuyển mã nguồn sang mã máy (file <code>.obj</code> hoặc <code>.o</code>)</li>
+            <li><strong>Liên kết:</strong> Kết hợp với thư viện để tạo file thực thi</li>
+            <li><strong>Thực thi:</strong> Chạy chương trình</li>
+        </ol>
+    </div>
+    
+    <!-- Phần bên phải -->
+    <div class="right-panel">
+        <!-- Nút hiện diagram và quiz -->
+        <button class="show-diagram-btn" id="showDiagramBtn">Hiện Diagram</button>
+        <button class="show-quiz-btn" id="showQuizBtn">Hiện Bài tập</button>
+        
+        <!-- Phần diagram -->
+        <div class="diagram" id="diagramSection">
+            <div class="diagram-header">
+                <h2>Biểu đồ quy trình biên dịch</h2>
+                <button class="toggle-diagram" onclick="toggleDiagram()">Ẩn Diagram</button>
+            </div>
+            
+            <div class="diagram-content">
+                <div class="mermaid-container">
+                    <div class="mermaid">
+                        graph LR
+                            A[Mã nguồn] --> B[Tiền xử lý]
+                            B --> C[Biên dịch]
+                            C --> D[Liên kết]
+                            D --> E[Chạy chương trình]
+                    </div>
+                </div>
+                
+                <h3>Ví dụ đa ngôn ngữ</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                    <div>
+                        <h4>Ngôn ngữ C</h4>
+                        <pre><code>#include <stdio.h>
+int main() {
+    printf("Hello");
+    return 0;
+}</code></pre>
+                    </div>
+                    <div>
+                        <h4>Ngôn ngữ Java</h4>
+                        <pre><code>public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello");
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phần bài tập -->
+        <div class="quiz" id="quizSection">
+            <div class="quiz-header">
+                <h2>Bài tập trắc nghiệm</h2>
+                <button class="toggle-quiz" onclick="toggleQuiz()">Ẩn Bài tập</button>
+            </div>
+            
+            <div class="quiz-content">
+                <div class="question" id="q1">
+                    <p>1. Thành phần nào sau đây KHÔNG phải là từ khóa trong Python?</p>
+                    <div class="options">
+                        <label class="option"><input type="radio" name="q1" value="a"> if</label>
+                       _WIDGET
+                        <label class="option"><input type="radio" name="q1" value="b"> print</label>
+                        <label class="option"><input type="radio" name="q1" value="c"> while</label>
+                        <label class="option"><input type="radio" name="q1" value="d"> class</label>
+                    </div>
+                    <button onclick="checkAnswer('q1', 'b')">Kiểm tra đáp án</button>
+                    <div class="answer-feedback"></div>
+                </div>
+                
+                <div class="question" id="q2">
+                    <p>2. Đâu là ví dụ về biểu thức (expression)?</p>
+                    <div class="options">
+                        <label class="option"><input type="radio" name="q2" value="a"> x = 5</label>
+                        <label class="option"><input type="radio" name="q2" value="b"> if x > 0:</label>
+                        <label class="option"><input type="radio" name="q2" value="c"> 3 + 5 * 2</label>
+                        <label class="option"><input type="radio" name="q2" value="d"> def main():</label>
+                    </div>
+                    <button onclick="checkAnswer('q2', 'c')">Kiểm tra đáp án</button>
+                    <div class="answer-feedback"></div>
+                </div>
+                
+                <div class="question" id="q3">
+                    <p>3. Bước nào sau đây KHÔNG thuộc quy trình biên dịch?</p>
+                    <div class="options">
+                        <label class="option"><input type="radio" name="q3" value="a"> Tiền xử lý</label>
+                        <label class="option"><input type="radio" name="q3" value="b"> Biên dịch</label>
+                        <label class="option"><input type="radio" name="q3" value="c"> Liên kết</label>
+                        <label class="option"><input type="radio" name="q3" value="d"> Debug</label>
+                    </div>
+                    <button onclick="checkAnswer('q3', 'd')">Kiểm tra đáp án</button>
+                    <div class="answer-feedback"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        // Khởi tạo Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true
+            }
+        });
+        
+        // Hàm kiểm tra đáp án
+        function checkAnswer(questionId, correctAnswer) {
+            const question = document.getElementById(questionId);
+            const selected = question.querySelector('input:checked');
+            const feedback = question.querySelector('.answer-feedback');
+            
+            if (!selected) {
+                feedback.textContent = "Vui lòng chọn đáp án trước khi kiểm tra!";
+                feedback.style.display = "block";
+                feedback.className = "answer-feedback incorrect";
+                return;
+            }
+            
+            if (selected.value === correctAnswer) {
+                feedback.textContent = "✓ Chính xác! Đáp án đúng.";
+                feedback.className = "answer-feedback correct";
+            } else {
+                const correctText = getAnswerText(questionId, correctAnswer);
+                feedback.innerHTML = `✗ Sai rồi! <br>Đáp án đúng là: <strong>${correctText}</strong>`;
+                feedback.className = "answer-feedback incorrect";
+            }
+            feedback.style.display = "block";
+        }
+        
+        // Hàm lấy nội dung đáp án đúng
+        function getAnswerText(questionId, value) {
+            const question = document.getElementById(questionId);
+            const labels = question.querySelectorAll('label');
+            for (let label of labels) {
+                const input = label.querySelector('input');
+                if (input && input.value === value) {
+                    return label.textContent.trim();
+                }
+            }
+            return "";
+        }
+        
+        // Hàm ẩn/hiện diagram
+        function toggleDiagram() {
+            const diagramSection = document.getElementById('diagramSection');
+            const showDiagramBtn = document.getElementById('showDiagramBtn');
+            const hideDiagramBtn = document.querySelector('.toggle-diagram');
+            
+            diagramSection.classList.toggle('collapsed');
+            
+            if (diagramSection.classList.contains('collapsed')) {
+                hideDiagramBtn.style.display = 'none';
+                showDiagramBtn.style.display = 'block';
+            } else {
+                hideDiagramBtn.style.display = 'block';
+                showDiagramBtn.style.display = 'none';
+                // Render lại mermaid khi hiện
+                mermaid.init();
+            }
+        }
+        
+        // Hàm ẩn/hiện quiz
+        function toggleQuiz() {
+            const quizSection = document.getElementById('quizSection');
+            const showQuizBtn = document.getElementById('showQuizBtn');
+            const hideQuizBtn = document.querySelector('.toggle-quiz');
+            
+            quizSection.classList.toggle('collapsed');
+            
+            if (quizSection.classList.contains('collapsed')) {
+                hideQuizBtn.style.display = 'none';
+                showQuizBtn.style.display = 'block';
+            } else {
+                hideQuizBtn.style.display = 'block';
+                showQuizBtn.style.display = 'none';
+            }
+        }
+        
+        // Gán sự kiện cho các nút
+        document.getElementById('showDiagramBtn').addEventListener('click', toggleDiagram);
+        document.getElementById('showQuizBtn').addEventListener('click', toggleQuiz);
+    </script>
+</body>
+</html>
